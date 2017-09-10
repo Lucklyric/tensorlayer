@@ -5,7 +5,7 @@
 
 
 import tensorflow as tf
-import os
+import os, re
 from sys import platform as _platform
 import collections
 import random
@@ -201,7 +201,7 @@ class Vocabulary(object):
   end_word : Special word denoting sentence end.
   unk_word : Special word denoting unknown words.
 
-  Properties
+  Attributes
   ------------
   vocab : a dictionary from word to id.
   reverse_vocab : a list from id to word.
@@ -338,9 +338,9 @@ def create_vocab(sentences, word_counts_output_file, min_word_count=1):
     --------
     - tl.nlp.SimpleVocabulary object.
 
-    Mores
-    -----
-    - ``tl.nlp.build_vocab()``
+    Notes
+    -------
+    - See more ``tl.nlp.build_vocab()``
 
     Examples
     --------
@@ -413,22 +413,22 @@ def simple_read_words(filename="nietzsche.txt"):
         return words
 
 def read_words(filename="nietzsche.txt", replace = ['\n', '<eos>']):
-    """File to list format context. Note that, this script can not handle punctuations.
+    """ File to list format context. Note that, this script can not handle punctuations.
     For customized read_words method, see ``tutorial_generate_text.py``.
 
     Parameters
-    ----------
+    -----------
     filename : a string
-        A file path (like .txt file),
+        A file path (like .txt file)
     replace : a list
         [original string, target string], to disable replace use ['', '']
 
     Returns
     --------
-    The context in a list, split by space by default, and use ``'<eos>'`` to represent ``'\n'``,
+    The context in a list, split by space by default, and use ``<eos>`` to represent ``\\n``,
     e.g. ``[... 'how', 'useful', 'it', "'s" ... ]``.
 
-    Code References
+    References
     ---------------
     - `tensorflow.models.rnn.ptb.reader <https://github.com/tensorflow/tensorflow/tree/master/tensorflow/models/rnn/ptb>`_
     """
@@ -520,7 +520,7 @@ def build_vocab(data):
     word_to_id : a dictionary
         mapping words to unique IDs. e.g. {'campbell': 2587, 'atlantic': 2247, 'aoun': 6746 .... }
 
-    Code References
+    References
     ---------------
     - `tensorflow.models.rnn.ptb.reader <https://github.com/tensorflow/tensorflow/tree/master/tensorflow/models/rnn/ptb>`_
 
@@ -594,7 +594,7 @@ def build_words_dataset(words=[], vocabulary_size=50000, printable=True, unk_key
     >>> vocabulary_size = 50000
     >>> data, count, dictionary, reverse_dictionary = tl.nlp.build_words_dataset(words, vocabulary_size)
 
-    Code References
+    References
     -----------------
     - `tensorflow/examples/tutorials/word2vec/word2vec_basic.py <https://github.com/tensorflow/tensorflow/blob/r0.7/tensorflow/examples/tutorials/word2vec/word2vec_basic.py>`_
     """
@@ -653,7 +653,7 @@ def words_to_word_ids(data=[], word_to_id={}, unk_key = 'UNK'):
     >>> print(context)
     ... [b'hello', b'how', b'are', b'you']
 
-    Code References
+    References
     ---------------
     - `tensorflow.models.rnn.ptb.reader <https://github.com/tensorflow/tensorflow/tree/master/tensorflow/models/rnn/ptb>`_
     """
@@ -943,3 +943,83 @@ def data_to_token_ids(data_path, target_path, vocabulary_path,
           tokens_file.write(" ".join([str(tok) for tok in token_ids]) + "\n")
   else:
     print("Target path %s exists" % target_path)
+
+
+## Metric
+import subprocess
+import tempfile
+from six.moves import urllib
+
+def moses_multi_bleu(hypotheses, references, lowercase=False): # tl.nlp
+  """Calculate the bleu score for hypotheses and references
+  using the MOSES ulti-bleu.perl script.
+
+  Parameters
+  ------------
+  hypotheses : A numpy array of strings where each string is a single example.
+  references : A numpy array of strings where each string is a single example.
+  lowercase : If true, pass the "-lc" flag to the multi-bleu script
+
+  Examples
+  ---------
+  >>> hypotheses = ["a bird is flying on the sky"]
+  >>> references = ["two birds are flying on the sky", "a bird is on the top of the tree", "an airplane is on the sky",]
+  >>> score = tl.nlp.moses_multi_bleu(hypotheses, references)
+
+  Returns
+  --------
+  The BLEU score as a float32 value.
+
+  References
+  ----------
+  - `Google/seq2seq/metric/bleu <https://github.com/google/seq2seq>`_
+  """
+
+  if np.size(hypotheses) == 0:
+    return np.float32(0.0)
+
+  # Get MOSES multi-bleu script
+  try:
+    multi_bleu_path, _ = urllib.request.urlretrieve(
+        "https://raw.githubusercontent.com/moses-smt/mosesdecoder/"
+        "master/scripts/generic/multi-bleu.perl")
+    os.chmod(multi_bleu_path, 0o755)
+  except: #pylint: disable=W0702
+    tf.logging.info("Unable to fetch multi-bleu.perl script, using local.")
+    metrics_dir = os.path.dirname(os.path.realpath(__file__))
+    bin_dir = os.path.abspath(os.path.join(metrics_dir, "..", "..", "bin"))
+    multi_bleu_path = os.path.join(bin_dir, "tools/multi-bleu.perl")
+
+  # Dump hypotheses and references to tempfiles
+  hypothesis_file = tempfile.NamedTemporaryFile()
+  hypothesis_file.write("\n".join(hypotheses).encode("utf-8"))
+  hypothesis_file.write(b"\n")
+  hypothesis_file.flush()
+  reference_file = tempfile.NamedTemporaryFile()
+  reference_file.write("\n".join(references).encode("utf-8"))
+  reference_file.write(b"\n")
+  reference_file.flush()
+
+  # Calculate BLEU using multi-bleu script
+  with open(hypothesis_file.name, "r") as read_pred:
+    bleu_cmd = [multi_bleu_path]
+    if lowercase:
+      bleu_cmd += ["-lc"]
+    bleu_cmd += [reference_file.name]
+    try:
+      bleu_out = subprocess.check_output(
+          bleu_cmd, stdin=read_pred, stderr=subprocess.STDOUT)
+      bleu_out = bleu_out.decode("utf-8")
+      bleu_score = re.search(r"BLEU = (.+?),", bleu_out).group(1)
+      bleu_score = float(bleu_score)
+    except subprocess.CalledProcessError as error:
+      if error.output is not None:
+        tf.logging.warning("multi-bleu.perl script returned non-zero exit code")
+        tf.logging.warning(error.output)
+      bleu_score = np.float32(0.0)
+
+  # Close temp files
+  hypothesis_file.close()
+  reference_file.close()
+
+  return np.float32(bleu_score)

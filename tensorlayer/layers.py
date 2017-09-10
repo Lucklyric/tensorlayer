@@ -410,7 +410,7 @@ class Word2vecEmbeddingInputlayer(Layer):
     name : a string or None
         An optional name to attach to this layer.
 
-    Variables
+    Attributes
     --------------
     nce_cost : a tensor
         The NCE loss.
@@ -543,7 +543,7 @@ class EmbeddingInputlayer(Layer):
     name : a string or None
         An optional name to attach to this layer.
 
-    Variables
+    Attributes
     ------------
     outputs : a tensor
         The outputs of embedding layer.
@@ -3727,8 +3727,8 @@ class TimeDistributedLayer(Layer):
 
         with ops.suppress_stdout():
             for i in range(0, timestep):
-                with tf.variable_scope(name, reuse=(False if i==0 else True)) as vs:
-                    set_name_reuse((False if i==0 else True))
+                with tf.variable_scope(name, reuse=(set_keep['name_reuse'] if i==0 else True)) as vs:
+                    set_name_reuse((set_keep['name_reuse'] if i==0 else True))
                     net = layer_class(InputLayer(x[i], name=args['name']+str(i)), **args)
                     # net = layer_class(InputLayer(x[i], name="input_"+args['name']), **args)
                     x[i] = net.outputs
@@ -3777,7 +3777,7 @@ class RNNLayer(Layer):
     name : a string or None
         An optional name to attach to this layer.
 
-    Variables
+    Attributes
     --------------
     outputs : a tensor
         The output of this RNN.
@@ -4044,7 +4044,7 @@ class BiRNNLayer(Layer):
     name : a string or None
         An optional name to attach to this layer.
 
-    Variables
+    Attributes
     --------------
     outputs : a tensor
         The output of this RNN.
@@ -4634,7 +4634,7 @@ class BiDynamicRNNLayer(Layer):
         The number of hidden units in the layer.
     initializer : initializer
         The initializer for initializing the parameters.
-    sequence_length : a tensor, array or None
+    sequence_length : a tensor, array or None.
         The sequence length of each row of input data, see ``Advanced Ops for Dynamic RNN``.
             - If None, it uses ``retrieve_seq_length_op`` to compute the sequence_length, i.e. when the features of padding (on right hand side) are all zeros.
             - If using word embedding, you may need to compute the sequence_length from the ID array (the integer features before word embedding) by using ``retrieve_seq_length_op2`` or ``retrieve_seq_length_op``.
@@ -4659,7 +4659,7 @@ class BiDynamicRNNLayer(Layer):
     name : a string or None
         An optional name to attach to this layer.
 
-    Variables
+    Attributes
     -----------------------
     outputs : a tensor
         The output of this RNN.
@@ -4864,10 +4864,12 @@ class BiDynamicRNNLayer(Layer):
 # Seq2seq
 class Seq2Seq(Layer):
     """
-    The :class:`Seq2Seq` class is a simple :class:`DynamicRNNLayer` based Seq2seq layer,
-    both encoder and decoder are :class:`DynamicRNNLayer`, network details
-    see `Model <https://camo.githubusercontent.com/242210d7d0151cae91107ee63bff364a860db5dd/687474703a2f2f6936342e74696e797069632e636f6d2f333031333674652e706e67>`_
-    and `Sequence to Sequence Learning with Neural Networks <https://arxiv.org/abs/1409.3215>`_ .
+    The :class:`Seq2Seq` class is a Simple :class:`DynamicRNNLayer` based Seq2seq layer without using `tl.contrib.seq2seq <https://www.tensorflow.org/api_guides/python/contrib.seq2seq>`_.
+    See `Model <https://camo.githubusercontent.com/9e88497fcdec5a9c716e0de5bc4b6d1793c6e23f/687474703a2f2f73757269796164656570616e2e6769746875622e696f2f696d672f736571327365712f73657132736571322e706e67>`_
+    and `Sequence to Sequence Learning with Neural Networks <https://arxiv.org/abs/1409.3215>`_.
+
+    - Please check the example `Chatbot in 200 lines of code <https://github.com/zsdonghao/seq2seq-chatbot>`_.
+    - The Author recommends users to read the source code of :class:`DynamicRNNLayer` and :class:`Seq2Seq`.
 
     Parameters
     ----------
@@ -4885,8 +4887,10 @@ class Seq2Seq(Layer):
         The initializer for initializing the parameters.
     encode_sequence_length : tensor for encoder sequence length, see :class:`DynamicRNNLayer` .
     decode_sequence_length : tensor for decoder sequence length, see :class:`DynamicRNNLayer` .
-    initial_state : None or forward RNN State
-        If None, initial_state is of encoder zero_state.
+    initial_state_encode : None or RNN state (from placeholder or other RNN).
+        If None, initial_state_encode is of zero state.
+    initial_state_decode : None or RNN state (from placeholder or other RNN).
+        If None, initial_state_decode is of the final state of the RNN encoder.
     dropout : `tuple` of `float`: (input_keep_prob, output_keep_prob).
         The input and output keep probability.
     n_layer : an int, default is 1.
@@ -4898,13 +4902,27 @@ class Seq2Seq(Layer):
     name : a string or None
         An optional name to attach to this layer.
 
-    Variables
+    Attributes
     ------------
     outputs : a tensor
         The output of RNN decoder.
+    initial_state_encode : a tensor or StateTuple
+        Initial state of RNN encoder.
+    initial_state_decode : a tensor or StateTuple
+        Initial state of RNN decoder.
+    final_state_encode : a tensor or StateTuple
+        Final state of RNN encoder.
+    final_state_decode : a tensor or StateTuple
+        Final state of RNN decoder.
 
-    final_state : a tensor or StateTuple
-        Final state of decoder, see :class:`DynamicRNNLayer` .
+    Notes
+    --------
+    - How to feed data: `Sequence to Sequence Learning with Neural Networks <https://arxiv.org/pdf/1409.3215v3.pdf>`_
+    - input_seqs : ``['how', 'are', 'you', '<PAD_ID'>]``
+    - decode_seqs : ``['<START_ID>', 'I', 'am', 'fine', '<PAD_ID'>]``
+    - target_seqs : ``['I', 'am', 'fine', '<END_ID', '<PAD_ID'>]``
+    - target_mask : ``[1, 1, 1, 1, 0]``
+    - related functions : tl.prepro <pad_sequences, precess_sequences, sequences_add_start_id, sequences_get_mask>
 
     Examples
     ----------
@@ -4936,7 +4954,7 @@ class Seq2Seq(Layer):
     ...             initializer = tf.random_uniform_initializer(-0.1, 0.1),
     ...             encode_sequence_length = retrieve_seq_length_op2(encode_seqs),
     ...             decode_sequence_length = retrieve_seq_length_op2(decode_seqs),
-    ...             initial_state = None,
+    ...             initial_state_encode = None,
     ...             dropout = None,
     ...             n_layer = 1,
     ...             return_seq_2d = True,
@@ -4946,14 +4964,7 @@ class Seq2Seq(Layer):
     >>> y = tf.nn.softmax(net_out.outputs)
     >>> net_out.print_params(False)
 
-    Notes
-    --------
-    - How to feed data: `Sequence to Sequence Learning with Neural Networks <https://arxiv.org/pdf/1409.3215v3.pdf>`_
-    - input_seqs : ``['how', 'are', 'you', '<PAD_ID'>]``
-    - decode_seqs : ``['<START_ID>', 'I', 'am', 'fine', '<PAD_ID'>]``
-    - target_seqs : ``['I', 'am', 'fine', '<END_ID']``
-    - target_mask : ``[1, 1, 1, 1, 0]``
-    - related functions : tl.prepro <pad_sequences, precess_sequences, sequences_add_start_id, sequences_get_mask>
+
     """
     def __init__(
         self,
@@ -4965,7 +4976,8 @@ class Seq2Seq(Layer):
         initializer = tf.random_uniform_initializer(-0.1, 0.1),
         encode_sequence_length = None,
         decode_sequence_length = None,
-        initial_state = None,
+        initial_state_encode = None,
+        initial_state_decode = None,
         dropout = None,
         n_layer = 1,
         # return_last = False,
@@ -4991,7 +5003,7 @@ class Seq2Seq(Layer):
                      cell_fn = cell_fn,
                      cell_init_args = cell_init_args,
                      n_hidden = n_hidden,
-                     initial_state = initial_state,
+                     initial_state = initial_state_encode,
                      dropout = dropout,
                      n_layer = n_layer,
                      sequence_length = encode_sequence_length,
@@ -5004,7 +5016,7 @@ class Seq2Seq(Layer):
                      cell_fn = cell_fn,
                      cell_init_args = cell_init_args,
                      n_hidden = n_hidden,
-                     initial_state = network_encode.final_state,
+                     initial_state = (network_encode.final_state if initial_state_decode is None else initial_state_decode),
                      dropout = dropout,
                      n_layer = n_layer,
                      sequence_length = decode_sequence_length,
@@ -5015,8 +5027,13 @@ class Seq2Seq(Layer):
 
             rnn_variables = tf.get_collection(TF_GRAPHKEYS_VARIABLES, scope=vs.name)
 
+        # Initial state
+        self.initial_state_encode = network_encode.initial_state
+        self.initial_state_decode = network_decode.initial_state
+
         # Final state
-        self.final_state = network_decode.final_state
+        self.final_state_encode = network_encode.final_state
+        self.final_state_decode = network_decode.final_state
 
         # self.sequence_length = sequence_length
         self.all_layers = list(network_decode.all_layers)
@@ -5956,9 +5973,9 @@ class EmbeddingAttentionSeq2seqWrapper(Layer):
         cell = cell_creator()
         if num_layers > 1:
           try: # TF1.0
-            cell = tf.contrib.rnn.MultiRNNCell([single_cell] * num_layers)
+            cell = tf.contrib.rnn.MultiRNNCell([cell] * num_layers)
           except:
-            cell = tf.nn.rnn_cell.MultiRNNCell([single_cell] * num_layers)
+            cell = tf.nn.rnn_cell.MultiRNNCell([cell] * num_layers)
 
         # ============== Seq Decode Layer ============
         # The seq2seq function: we use embedding for the input and attention.
