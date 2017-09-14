@@ -259,6 +259,8 @@ class Layer(object):
         name ='layer'
     ):
         self.inputs = inputs
+        self.child_layers = []
+        self.net_tree = dict()
         scope_name = tf.get_variable_scope().name
         if scope_name:
             name = scope_name + '/' + name
@@ -333,7 +335,7 @@ class InputLayer(Layer):
         Layer.__init__(self, inputs=inputs, name=name)
         print("  [TL] InputLayer  %s: %s" % (self.name, inputs.get_shape()))
         self.outputs = inputs
-        self.all_layers = []
+        self.all_layers = [inputs]
         self.all_params = []
         self.all_drop = {}
 
@@ -370,7 +372,7 @@ class OneHotInputLayer(Layer):
         assert depth != None, "depth is not given"
         print("  [TL]:Instantiate OneHotInputLayer  %s: %s" % (self.name, inputs.get_shape()))
         self.outputs = tf.one_hot(inputs, depth, on_value=on_value, off_value=off_value, axis=axis, dtype=dtype)
-        self.all_layers = []
+        self.all_layers = [inputs]
         self.all_params = []
         self.all_drop = {}
 
@@ -702,6 +704,11 @@ class DenseLayer(Layer):
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
+
         if b_init is not None:
             self.all_params.extend( [W, b] )
         else:
@@ -974,7 +981,10 @@ class DropoutLayer(Layer):
             if is_fix is False:
                 self.all_drop.update( {set_keep[name]: keep} )
             self.all_layers.extend( [self.outputs] )
-
+            # Format net tree for plot_net
+            layer.child_layers.extend([self.outputs.name])
+            layer.net_tree[layer.outputs.name] = layer.child_layers
+            self.net_tree = dict(layer.net_tree)
         # print(set_keep[name])
         #   Tensor("Placeholder_2:0", dtype=float32)
         # print(denoising1)
@@ -1036,6 +1046,10 @@ class GaussianNoiseLayer(Layer):
             self.all_layers = list(layer.all_layers)
             self.all_params = list(layer.all_params)
             self.all_drop = dict(layer.all_drop)
+            # Format net tree for plot_net
+            layer.child_layers.extend([self.outputs.name])
+            layer.net_tree[layer.outputs.name] = layer.child_layers
+            self.net_tree = dict(layer.net_tree)
 
 class DropconnectDenseLayer(Layer):
     """
@@ -1113,6 +1127,10 @@ class DropconnectDenseLayer(Layer):
         self.all_drop.update( {set_keep[name]: keep} )
         self.all_layers.extend( [self.outputs] )
         self.all_params.extend( [W, b] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
 
 ## Convolutional layer (Pro)
 
@@ -1188,6 +1206,10 @@ class Conv1dLayer(Layer):
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
         if b_init:
             self.all_params.extend( [W, b] )
         else:
@@ -1288,6 +1310,10 @@ class Conv2dLayer(Layer):
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
         if b_init:
             self.all_params.extend( [W, b] )
         else:
@@ -1394,6 +1420,10 @@ class DeConv2dLayer(Layer):
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
         if b_init:
             self.all_params.extend( [W, b] )
         else:
@@ -1456,6 +1486,10 @@ class Conv3dLayer(Layer):
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
         self.all_params.extend( [W, b] )
 
 class DeConv3dLayer(Layer):
@@ -1515,6 +1549,10 @@ class DeConv3dLayer(Layer):
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
         self.all_params.extend( [W, b] )
 
 class UpSampling2dLayer(Layer):
@@ -1570,6 +1608,10 @@ class UpSampling2dLayer(Layer):
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
 
 class DownSampling2dLayer(Layer):
     """The :class:`DownSampling2dLayer` class is downSampling 2d layer, see `tf.image.resize_images <https://www.tensorflow.org/versions/master/api_docs/python/image/resizing#resize_images>`_.
@@ -1624,6 +1666,10 @@ class DownSampling2dLayer(Layer):
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
 
 
 def AtrousConv1dLayer(net, n_filter=32, filter_size=2, stride=1, dilation=1, act=None,
@@ -1713,6 +1759,10 @@ class AtrousConv2dLayer(Layer):
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
         if b_init:
             self.all_params.extend( [filters, b] )
         else:
@@ -1790,6 +1840,10 @@ class SeparableConv2dLayer(Layer):# Untested
         self.all_params = list(layer.all_params)
         self.all_drop = dict(layer.all_drop)
         self.all_layers.extend( [self.outputs] )
+        # Format net tree for plot_net
+        layer.child_layers.extend([self.outputs.name])
+        layer.net_tree[layer.outputs.name] = layer.child_layers
+        self.net_tree = dict(layer.net_tree)
         self.all_params.extend( variables )
 
 ## Initializers for Convuolutional Layers
@@ -2020,6 +2074,10 @@ def MaxPool1d(net, filter_size, strides, padding='valid', data_format='channels_
     net_new = copy.copy(net)
     net_new.outputs = outputs
     net_new.all_layers.extend( [outputs] )
+    # Format net tree for plot_net
+    net.child_layers.extend([outputs.name])
+    net.net_tree[net.outputs.name] = net.child_layers
+    net_new.net_tree = dict(net.net_tree)
     return net_new
 
 def MeanPool1d(net, filter_size, strides, padding='valid', data_format='channels_last', name=None): #Untested
@@ -2045,6 +2103,10 @@ def MeanPool1d(net, filter_size, strides, padding='valid', data_format='channels
     net_new = copy.copy(net)
     net_new.outputs = outputs
     net_new.all_layers.extend( [outputs] )
+    # Format net tree for plot_net
+    net.child_layers.extend([outputs.name])
+    net.net_tree[net.outputs.name] = net.child_layers
+    net_new.net_tree = dict(net.net_tree)
     return net_new
 
 def MaxPool2d(net, filter_size=(2, 2), strides=None, padding='SAME', name='maxpool'):
@@ -2106,6 +2168,10 @@ def MaxPool3d(net, filter_size, strides, padding='valid', data_format='channels_
     net_new = copy.copy(net)
     net_new.outputs = outputs
     net_new.all_layers.extend( [outputs] )
+    # Format net tree for plot_net
+    net.child_layers.extend([outputs.name])
+    net.net_tree[net.outputs.name] = net.child_layers
+    net_new.net_tree = dict(net.net_tree)
     return net_new
 
 def MeanPool3d(net, filter_size, strides, padding='valid', data_format='channels_last', name=None): #Untested
@@ -2127,6 +2193,10 @@ def MeanPool3d(net, filter_size, strides, padding='valid', data_format='channels
     net_new = copy.copy(net)
     net_new.outputs = outputs
     net_new.all_layers.extend( [outputs] )
+    # Format net tree for plot_net
+    net.child_layers.extend([outputs.name])
+    net.net_tree[net.outputs.name] = net.child_layers
+    net_new.net_tree = dict(net.net_tree)
     return net_new
 
 ## Super resolution
@@ -2215,6 +2285,10 @@ def SubpixelConv2d(net, scale=2, n_out_channel=None, act=tf.identity, name='subp
     net_new.all_params = list(net.all_params)
     net_new.all_drop = dict(net.all_drop)
     net_new.all_layers.extend( [net_new.outputs] )
+    # Format net tree for plot_net
+    net.child_layers.extend([net_new.outputs.name])
+    net.net_tree[net.outputs.name] = net.child_layers
+    net_new.net_tree = dict(net.net_tree)
     return net_new
 
 def SubpixelConv2d_old(net, scale=2, n_out_channel=None, act=tf.identity, name='subpixel_conv2d'):
@@ -2317,6 +2391,10 @@ def SubpixelConv2d_old(net, scale=2, n_out_channel=None, act=tf.identity, name='
     net_new.all_params = list(net.all_params)
     net_new.all_drop = dict(net.all_drop)
     net_new.all_layers.extend( [net_new.outputs] )
+    # Format net tree for plot_net
+    net.child_layers.extend([net_new.outputs.name])
+    net.net_tree[net.outputs.name] = net.child_layers
+    net_new.net_tree = dict(net.net_tree)
     return net_new
 
 
@@ -2362,6 +2440,10 @@ def SubpixelConv1d(net, scale=2, act=tf.identity, name='subpixel_conv1d'):
     net_new.all_params = list(net.all_params)
     net_new.all_drop = dict(net.all_drop)
     net_new.all_layers.extend( [net_new.outputs] )
+    # Format net tree for plot_net
+    net.child_layers.extend([net_new.outputs.name])
+    net.net_tree[net.outputs.name] = net.child_layers
+    net_new.net_tree = dict(net.net_tree)
     return net_new
 
 ## Spatial Transformer Nets
