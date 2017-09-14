@@ -5419,15 +5419,25 @@ class ConcatLayer(Layer):
         self.all_layers = list(layer[0].all_layers)
         self.all_params = list(layer[0].all_params)
         self.all_drop = dict(layer[0].all_drop)
+        # Format net tree for plot_net
+        layer[0].child_layers.extend([self.outputs.name])
+        layer[0].net_tree[layer[0].outputs.name] = layer[0].child_layers
+        self.net_tree = dict(layer[0].net_tree)
 
         for i in range(1, len(layer)):
             self.all_layers.extend(list(layer[i].all_layers))
             self.all_params.extend(list(layer[i].all_params))
             self.all_drop.update(dict(layer[i].all_drop))
 
+            # Format net tree for plot_net
+            layer[i].child_layers.extend([self.outputs.name])
+            layer[i].net_tree[layer[i].outputs.name] = layer[i].child_layers
+            self.net_tree.update(dict(layer[i].net_tree))
+
         self.all_layers = list_remove_repeat(self.all_layers)
         self.all_params = list_remove_repeat(self.all_params)
-        #self.all_drop = list_remove_repeat(self.all_drop) # it is a dict
+        # self.all_drop = list_remove_repeat(self.all_drop) # it is a dict
+        self.all_layers.extend([self.outputs])
 
 class ElementwiseLayer(Layer):
     """

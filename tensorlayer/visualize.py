@@ -408,10 +408,14 @@ def plot_net(net, file_name='net.png', show_shapes=False, rankdir="TB"):
         id_layer_name_pair[layer_name] = i
 
     for key in net.net_tree:
-        parent_id = id_layer_name_pair[key]
+        if key in id_layer_name_pair.keys():
+            parent_id = id_layer_name_pair[key]
+        else:
+            continue
         for child in net.net_tree[key]:
-            child_id = id_layer_name_pair[child]
-            dot.add_edge(pydot.Edge(parent_id,child_id))
+            if child in id_layer_name_pair.keys():
+                child_id = id_layer_name_pair[child]
+                dot.add_edge(pydot.Edge(parent_id,child_id))
     _, extension = os.path.splitext(file_name)
     if not extension:
         extension = 'png'
