@@ -10,6 +10,7 @@ import matplotlib
 # matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
+import pydot_ng as pydot
 import numpy as np
 import os
 from . import prepro
@@ -386,5 +387,35 @@ def tsne_embedding(embeddings, reverse_dictionary, plot_only=500,
     except ImportError:
         print("Please install sklearn and matplotlib to visualize embeddings.")
 
+def plot_net(net, file_name='net.png', show_shapes=False, rankdir="TB"):
+    dot = pydot.Dot()
+    dot.set('rankdir', rankdir)
+    dot.set('concentrate', True)
+    dot.set_node_defaults(shape='recodr')
 
+    id_layer_name_pair = dict()
+    for i, layer in enumerate(net.all_layers):
+        layer_name = layer.name
+        layer_shape = layer.get_shape()
+
+        if show_shapes:
+            label = "%s\n %s" % (layer_name, str(layer_shape))
+        else:
+            label = layer_name
+
+        node = pydot.Node(i, label=label)
+        dot.add_node(node)
+        id_layer_name_pair[layer_name] = i
+
+    for key in net.net_tree:
+        parent_id = id_layer_name_pair[key]
+        for child in net.net_tree[key]:
+            child_id = id_layer_name_pair[child]
+            dot.add_edge(pydot.Edge(parent_id,child_id))
+    _, extension = os.path.splitext(file_name)
+    if not extension:
+        extension = 'png'
+    else:
+        extension = extension[1:]
+    dot.write(file_name, format=extension)
 #
